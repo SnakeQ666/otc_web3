@@ -30,4 +30,5 @@ yarn-error.log*
 
 # OS
 .DS_Store
-Thumbs.db 
+Thumbs.db
+otc_web3_backend/.env.development
