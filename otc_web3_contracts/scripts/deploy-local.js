@@ -74,7 +74,15 @@ async function main() {
 //     escrow: escrowAddress
 //   };
 
+  // 自动写入前端合约地址配置
+  const frontendContractsPath = path.resolve(__dirname, '../../otc_web3_frontend/src/config/contracts.ts');
+  const contractsContent = `// 合约地址配置
+export const MARKET_CONTRACT_ADDRESS_LOCAL = '${marketAddress}';
+export const ESCROW_CONTRACT_ADDRESS_LOCAL = '${escrowAddress}';
+`;
 
+  fs.writeFileSync(frontendContractsPath, contractsContent, 'utf-8');
+  console.log(`\n已自动写入最新合约地址到: ${frontendContractsPath}`);
 
   console.log("\n合约部署完成！监听事件中...");
 }
