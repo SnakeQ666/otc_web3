@@ -7,7 +7,7 @@ otc_web3_admin/node_modules/
 # Environment variables
 .env
 .env.local
-.env.development.local
+.env.development
 .env.test.local
 .env.production.local
 
@@ -32,3 +32,26 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 otc_web3_backend/.env.development
+
+# Env & secrets
+.env*
+*.env*
+
+# Log
+*.log
+
+# Build
+*.tsbuildinfo
+.cache/
+artifacts/
+
+# VSCode
+.vscode/
+
+# 其他常见敏感文件
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+*.keystore
