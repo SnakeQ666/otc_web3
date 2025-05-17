@@ -15,6 +15,23 @@ async function main() {
   const tokenFaucetAddress = await tokenFaucet.getAddress();
   console.log("TokenFaucet deployed to:", tokenFaucetAddress);
 
+  // === 自动写入前端 contracts.ts ===
+  const contractsPath = path.resolve(__dirname, '../../otc_web3_frontend/src/config/contracts.ts');
+  let contractsContent = '';
+  if (fs.existsSync(contractsPath)) {
+    // 读取原有内容，保留 MARKET_CONTRACT_ADDRESS_LOCAL 和 ESCROW_CONTRACT_ADDRESS_LOCAL
+    const raw = fs.readFileSync(contractsPath, 'utf-8');
+    const marketMatch = raw.match(/export const MARKET_CONTRACT_ADDRESS_LOCAL = '([^']+)'/);
+    const escrowMatch = raw.match(/export const ESCROW_CONTRACT_ADDRESS_LOCAL = '([^']+)'/);
+    const market = marketMatch ? marketMatch[1] : '';
+    const escrow = escrowMatch ? escrowMatch[1] : '';
+    contractsContent = `// 合约地址配置\nexport const MARKET_CONTRACT_ADDRESS_LOCAL = '${market}';\nexport const ESCROW_CONTRACT_ADDRESS_LOCAL = '${escrow}';\nexport const TOKEN_FAUCET_ADDRESS_LOCAL = '${tokenFaucetAddress}';\n`;
+  } else {
+    contractsContent = `// 合约地址配置\nexport const MARKET_CONTRACT_ADDRESS_LOCAL = '';\nexport const ESCROW_CONTRACT_ADDRESS_LOCAL = '';\nexport const TOKEN_FAUCET_ADDRESS_LOCAL = '${tokenFaucetAddress}';\n`;
+  }
+  fs.writeFileSync(contractsPath, contractsContent, 'utf-8');
+  console.log(`已自动写入TokenFaucet地址到: ${contractsPath}`);
+
   // 创建与前端tokenList.ts匹配的代币
   const initialTokens = [
     {
@@ -141,10 +158,16 @@ async function main() {
   const frontendTokenListPath = path.resolve(__dirname, '../../otc_web3_frontend/src/config/tokenList.ts');
   fs.writeFileSync(frontendTokenListPath, tokenListContent, 'utf-8');
   console.log(`\n已自动写入最新tokenList到: ${frontendTokenListPath}`);
+
+  // ====== 新增：直接调用getAllTokens并打印结果 ======
+  const TokenFaucetABI = TokenFaucet.interface.fragments;
+  const tokenFaucetInstance = await hre.ethers.getContractAt("TokenFaucet", tokenFaucetAddress);
+  const allTokens = await tokenFaucetInstance.getAllTokens();
+  console.log("\n直接调用getAllTokens()返回:");
+  console.dir(allTokens, { depth: null });
 }
 
 main()
-  .then(() => process.exit(0))
   .catch((error) => {
     console.error(error);
     process.exit(1);
