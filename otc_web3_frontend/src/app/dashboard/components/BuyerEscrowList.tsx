@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { Table, Tag, Button, message, Space, Spin } from 'antd';
 import { useTranslation } from 'react-i18next';
-import { formatUnits } from 'ethers';
+import { formatUnits, parseUnits } from 'ethers';
 import { escrowAbi } from '@/contractAbis/escrowAbi';
 import { ESCROW_CONTRACT_ADDRESS_LOCAL } from '@/config/contracts';
 import { token as tokenList } from '@/config/tokenList';
 // 直接导入wagmi钩子
-import { useAccount, useReadContract, useWriteContract } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useReadContracts } from 'wagmi';
+import { testTokenAbi } from '@/contractAbis/testTokenAbi';
+import { Abi } from 'viem';
 
 interface EscrowOrder {
   orderId: string;
@@ -42,6 +44,8 @@ const BuyerEscrowList = () => {
   const [loading, setLoading] = useState(true);
   const [web3Error, setWeb3Error] = useState<string | null>(null);
   const [hasWeb3, setHasWeb3] = useState(false);
+  const [approvingToken, setApprovingToken] = useState<string | null>(null);
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
   // 使用钩子从钱包获取地址
   const accountData = useAccount();
@@ -66,6 +70,31 @@ const BuyerEscrowList = () => {
   
   // 争议的合约调用
   const disputeResult = useWriteContract();
+
+  // 授权合约
+  const approveResult = useWriteContract();
+
+  // 批量获取所有token的allowance
+  const allowanceContracts = tokenList.map(token => ({
+    address: token.address as `0x${string}`,
+    abi: testTokenAbi as unknown as Abi,
+    functionName: 'allowance',
+    args: [address as `0x${string}` || '0x0', ESCROW_CONTRACT_ADDRESS_LOCAL],
+  }));
+  const { data: allowanceResults, refetch: refetchAllowances } = useReadContracts({
+    contracts: allowanceContracts,
+    query: { enabled: !!address }
+  });
+
+  // allowanceMap: { [tokenAddress]: allowanceValue }
+  const allowanceMap: Record<string, bigint> = {};
+  if (allowanceResults && Array.isArray(allowanceResults)) {
+    allowanceResults.forEach((res, idx) => {
+      if (res && res.status === 'success') {
+        allowanceMap[tokenList[idx].address] = res.result as bigint;
+      }
+    });
+  }
 
   // 初始化Web3状态
   useEffect(() => {
@@ -97,7 +126,7 @@ const BuyerEscrowList = () => {
       try {
         // 确保eventsData是数组
         const escrowArray = Array.isArray(eventsData) ? eventsData : [];
-        
+        console.log("escrowArray", escrowArray)
         const orders = escrowArray.map((escrow: EscrowData) => ({
           orderId: escrow.orderId?.toString(),
           maker: escrow.maker,
@@ -127,7 +156,7 @@ const BuyerEscrowList = () => {
   // 处理完成托管结果
   useEffect(() => {
     if (!hasWeb3) return;
-    
+  
     if (completeResult.isSuccess) {
       message.success(t('dashboard.escrow.completeSuccess'));
       if (refetchEvents) refetchEvents();
@@ -148,6 +177,20 @@ const BuyerEscrowList = () => {
     }
   }, [disputeResult.isSuccess, disputeResult.isError, t, refetchEvents, hasWeb3]);
 
+  // 处理授权结果
+  useEffect(() => {
+    if (!hasWeb3) return;
+    if (approveResult.isSuccess) {
+      message.success(t('dashboard.escrow.approveSuccess'));
+      refetchAllowances();
+      setApprovingToken(null);
+    } else if (approveResult.isError) {
+      message.error(t('dashboard.escrow.approveError'));
+      setApprovingToken(null);
+      setPendingOrderId(null);
+    }
+  }, [approveResult.isSuccess, approveResult.isError, hasWeb3, t, refetchAllowances]);
+
   const getStatusColor = (status: string) => {
     const statusColors: { [key: string]: string } = {
       Created: 'blue',
@@ -159,19 +202,76 @@ const BuyerEscrowList = () => {
     return statusColors[status] || 'default';
   };
 
+  // 授权逻辑
+  const handleApprove = async (tokenAddress: string, amount: string, orderId: string) => {
+    if (!approveResult.writeContract || !address) {
+      message.error('钱包未连接或合约不可用');
+      return;
+    }
+    try {
+      setApprovingToken(tokenAddress);
+      setPendingOrderId(orderId);
+      const token = tokenList.find(t => t.address === tokenAddress);
+      if (!token) {
+        message.error('代币信息不存在');
+        return;
+      }
+      const amountInWei = parseUnits(amount, token.decimals || 18);
+      await approveResult.writeContract({
+        address: tokenAddress as `0x${string}`,
+        abi: testTokenAbi as unknown as Abi,
+        functionName: 'approve',
+        args: [ESCROW_CONTRACT_ADDRESS_LOCAL, amountInWei],
+      });
+     
+    } catch (error) {
+      console.error('授权失败:', error);
+      message.error(t('dashboard.escrow.approveError'));
+      setApprovingToken(null);
+      setPendingOrderId(null);
+    }
+  };
+
+  // 修改handleCompleteEscrow，增加授权判断
   const handleCompleteEscrow = async (orderId: string) => {
     if (!completeResult.writeContract) {
       message.error('合约不可用');
       return;
     }
-    
     try {
-      completeResult.writeContract({
-        address: ESCROW_CONTRACT_ADDRESS_LOCAL,
-        abi: escrowAbi,
-        functionName: 'completeEscrow',
-        args: [orderId],
-      });
+      const escrow = escrowOrders.find(order => order.orderId === orderId);
+      if (!escrow) {
+        message.error(t('dashboard.escrow.notFound'));
+        return;
+      }
+      // 如果是ETH直接complete
+      if (escrow.tokenToBuy === '0x0000000000000000000000000000000000000000') {
+        completeResult.writeContract({
+          address: ESCROW_CONTRACT_ADDRESS_LOCAL,
+          abi: escrowAbi,
+          functionName: 'completeEscrow',
+          args: [orderId],
+        });
+      } else {
+        // ERC20 代币需要先检查授权
+        const token = tokenList.find(t => t.address === escrow.tokenToBuy);
+        if (!token) {
+          message.error('代币信息不存在');
+          return;
+        }
+        const amountInWei = parseUnits(escrow.amountToBuy, token.decimals || 18);
+        const allowance = allowanceMap[escrow.tokenToBuy] || BigInt(0);
+        if (allowance >= amountInWei) {
+          completeResult.writeContract({
+            address: ESCROW_CONTRACT_ADDRESS_LOCAL,
+            abi: escrowAbi,
+            functionName: 'completeEscrow',
+            args: [orderId],
+          });
+        } else {
+          handleApprove(escrow.tokenToBuy, escrow.amountToBuy, orderId);
+        }
+      }
     } catch (error) {
       console.error('完成托管订单失败:', error);
       message.error(t('dashboard.escrow.completeError'));
@@ -199,12 +299,12 @@ const BuyerEscrowList = () => {
 
   const columns = [
     {
-      title: t('dashboard.escrow.orderId'),
+      title: 'Order ID',
       dataIndex: 'orderId',
       key: 'orderId'
     },
     {
-      title: t('dashboard.escrow.maker'),
+      title: 'Maker',
       dataIndex: 'maker',
       key: 'maker',
       render: (maker: string) => (
@@ -212,17 +312,33 @@ const BuyerEscrowList = () => {
       )
     },
     {
-      title: t('dashboard.escrow.amountToSell'),
+      title: 'Amount to Sell',
       dataIndex: 'amountToSell',
-      key: 'amountToSell'
+      key: 'amountToSell',
+      render: (amount: string, record: EscrowOrder) => {
+        const token = tokenList.find(t => t.address === record.tokenToSell);
+        return (
+          <span>
+            {token && token.icon && <img src={token.icon} alt={token.symbol} style={{width:16,height:16,verticalAlign:'middle',marginRight:4}} />} {amount}
+          </span>
+        );
+      }
     },
     {
-      title: t('dashboard.escrow.amountToBuy'),
+      title: 'Amount to Buy',
       dataIndex: 'amountToBuy',
-      key: 'amountToBuy'
+      key: 'amountToBuy',
+      render: (amount: string, record: EscrowOrder) => {
+        const token = tokenList.find(t => t.address === record.tokenToBuy);
+        return (
+          <span>
+            {token && token.icon && <img src={token.icon} alt={token.symbol} style={{width:16,height:16,verticalAlign:'middle',marginRight:4}} />} {amount}
+          </span>
+        );
+      }
     },
     {
-      title: t('dashboard.escrow.status'),
+      title: 'Status',
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
@@ -230,27 +346,59 @@ const BuyerEscrowList = () => {
       )
     },
     {
-      title: t('dashboard.escrow.createdAt'),
+      title: 'Created At',
       dataIndex: 'createdAt',
       key: 'createdAt'
     },
     {
-      title: t('dashboard.escrow.actions'),
+      title: 'Actions',
       key: 'actions',
-      render: (_: any, record: EscrowOrder) => (
-        <Space size="middle">
-          {record.status === 'Locked' && (
-            <Button type="primary" loading={completeResult.isPending} onClick={() => handleCompleteEscrow(record.orderId)}>
-              {t('dashboard.escrow.complete')}
-            </Button>
-          )}
-          {record.status === 'Locked' && (
-            <Button type="primary" danger loading={disputeResult.isPending} onClick={() => handleDispute(record.orderId)}>
-              {t('dashboard.escrow.dispute')}
-            </Button>
-          )}
-        </Space>
-      )
+      render: (_: any, record: EscrowOrder) => {
+        // 判断是否为ERC20
+        const isERC20 = record.tokenToBuy !== '0x0000000000000000000000000000000000000000';
+        // 当前是否正在授权
+        const isApproving = approvingToken === record.tokenToBuy && pendingOrderId === record.orderId;
+        // allowance判断
+        let enoughAllowance = true;
+        if (isERC20 && address) {
+          const token = tokenList.find(t => t.address === record.tokenToBuy);
+          const amountInWei = parseUnits(record.amountToBuy, token?.decimals || 18);
+          const allowance = allowanceMap[record.tokenToBuy] || BigInt(0);
+          enoughAllowance = allowance >= amountInWei;
+        }
+        return (
+          <Space size="middle">
+            {record.status === 'Locked' && isERC20 && !enoughAllowance && (
+              <Button
+                type="primary"
+                loading={isApproving}
+                onClick={() => handleApprove(record.tokenToBuy, record.amountToBuy, record.orderId)}
+              >
+                {isApproving ? 'Approving...' : 'Approve'}
+              </Button>
+            )}
+            {record.status === 'Locked' && (!isERC20 || enoughAllowance) && (
+              <Button
+                type="primary"
+                loading={completeResult.isPending}
+                onClick={() => handleCompleteEscrow(record.orderId)}
+              >
+                Complete
+              </Button>
+            )}
+            {record.status === 'Locked' && (
+              <Button
+                type="primary"
+                danger
+                loading={disputeResult.isPending}
+                onClick={() => handleDispute(record.orderId)}
+              >
+                Dispute
+              </Button>
+            )}
+          </Space>
+        );
+      }
     }
   ];
 

@@ -123,6 +123,7 @@ function getAllOrders() external view returns (Order[] memory) {
         require(order.status == OrderStatus.Active, "Order not active");
 
         order.status = OrderStatus.Cancelled;
+        allOrders[_orderId - 1].status = OrderStatus.Cancelled;
         emit OrderCancelled(_orderId);
     }
 
@@ -133,6 +134,7 @@ function getAllOrders() external view returns (Order[] memory) {
         require(order.status == OrderStatus.Active, "Order not active");
 
         order.status = OrderStatus.Completed;
+        allOrders[_orderId - 1].status = OrderStatus.Completed;
         emit OrderCompleted(_orderId);
     }
 }

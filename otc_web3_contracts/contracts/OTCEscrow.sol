@@ -36,11 +36,20 @@ contract OTCEscrow is ReentrancyGuard, Ownable {
     // 托管映射：orderId => Escrow
     mapping(uint256 => Escrow) public escrows;
 
-    // 用户作为maker的托管订单映射：maker => orderId[]
-    mapping(address => Escrow[]) public makerEscrows;
+    // 用户作为maker的托管订单映射：maker => (orderId => Escrow)
+    mapping(address => mapping(uint256 => Escrow)) public makerEscrows;
 
-    // 用户作为taker的托管订单映射：taker => orderId[]
-    mapping(address => Escrow[]) public takerEscrows;
+    // 用户作为taker的托管订单映射：taker => (orderId => Escrow)
+    mapping(address => mapping(uint256 => Escrow)) public takerEscrows;
+
+    // 用户作为maker的订单ID列表：maker => orderId[]
+    mapping(address => uint256[]) public makerOrderIds;
+
+    // 用户作为taker的订单ID列表：taker => orderId[]
+    mapping(address => uint256[]) public takerOrderIds;
+
+    // 全部托管订单ID数组
+    uint256[] public allEscrowOrderIds;
 
     // 争议处理等待时间（24小时）
     uint256 public constant DISPUTE_TIMEOUT = 24 hours;
@@ -77,10 +86,37 @@ contract OTCEscrow is ReentrancyGuard, Ownable {
         });
 
         escrows[_orderId] = newEscrow;
-        
-        // 更新maker和taker的托管订单映射
-        makerEscrows[order.maker].push(newEscrow);
-        takerEscrows[msg.sender].push(newEscrow);
+        makerEscrows[order.maker][_orderId] = newEscrow;
+        takerEscrows[msg.sender][_orderId] = newEscrow;
+
+        // 只在 takerOrderIds[msg.sender] 里没有该 orderId 时才 push
+        bool takerHasOrder = false;
+        uint256[] storage takerOrders = takerOrderIds[msg.sender];
+        for (uint i = 0; i < takerOrders.length; i++) {
+            if (takerOrders[i] == _orderId) {
+                takerHasOrder = true;
+                break;
+            }
+        }
+        if (!takerHasOrder) {
+            takerOrderIds[msg.sender].push(_orderId);
+        }
+
+        // makerOrderIds 也做同样处理
+        bool makerHasOrder = false;
+        uint256[] storage makerOrders = makerOrderIds[order.maker];
+        for (uint i = 0; i < makerOrders.length; i++) {
+            if (makerOrders[i] == _orderId) {
+                makerHasOrder = true;
+                break;
+            }
+        }
+        if (!makerHasOrder) {
+            makerOrderIds[order.maker].push(_orderId);
+        }
+
+        // 将订单ID添加到全局数组
+        allEscrowOrderIds.push(_orderId);
 
         emit EscrowCreated(_orderId, order.maker, msg.sender);
     }
@@ -102,6 +138,11 @@ contract OTCEscrow is ReentrancyGuard, Ownable {
         }
 
         escrow.status = EscrowStatus.Locked;
+        
+        // 更新映射中的状态
+        makerEscrows[escrow.maker][_orderId].status = EscrowStatus.Locked;
+        takerEscrows[escrow.taker][_orderId].status = EscrowStatus.Locked;
+
         emit EscrowLocked(_orderId);
     }
 
@@ -138,6 +179,12 @@ contract OTCEscrow is ReentrancyGuard, Ownable {
         escrow.status = EscrowStatus.Completed;
         escrow.completedAt = block.timestamp;
 
+        // 更新映射中的状态
+        makerEscrows[escrow.maker][_orderId].status = EscrowStatus.Completed;
+        makerEscrows[escrow.maker][_orderId].completedAt = block.timestamp;
+        takerEscrows[escrow.taker][_orderId].status = EscrowStatus.Completed;
+        takerEscrows[escrow.taker][_orderId].completedAt = block.timestamp;
+
         // 更新订单状态
         otcMarket.completeOrder(escrow.orderId);
 
@@ -173,6 +220,11 @@ contract OTCEscrow is ReentrancyGuard, Ownable {
         }
 
         escrow.status = EscrowStatus.Refunded;
+
+        // 更新映射中的状态
+        makerEscrows[escrow.maker][_orderId].status = EscrowStatus.Refunded;
+        takerEscrows[escrow.taker][_orderId].status = EscrowStatus.Refunded;
+
         emit EscrowRefunded(_orderId);
     }
 
@@ -186,6 +238,11 @@ contract OTCEscrow is ReentrancyGuard, Ownable {
         require(escrow.status == EscrowStatus.Locked, "Invalid escrow status");
 
         escrow.status = EscrowStatus.Disputed;
+
+        // 更新映射中的状态
+        makerEscrows[escrow.maker][_orderId].status = EscrowStatus.Disputed;
+        takerEscrows[escrow.taker][_orderId].status = EscrowStatus.Disputed;
+
         emit EscrowDisputed(_orderId);
     }
 
@@ -194,13 +251,38 @@ contract OTCEscrow is ReentrancyGuard, Ownable {
         return escrows[_orderId];
     }
 
-    // 获取用户作为maker的所有托管订单ID
+    // 获取用户作为maker的所有托管订单
     function getMakerEscrows(address _maker) external view returns (Escrow[] memory) {
-        return makerEscrows[_maker];
+        uint256[] memory orderIds = makerOrderIds[_maker];
+        Escrow[] memory result = new Escrow[](orderIds.length);
+        
+        for (uint i = 0; i < orderIds.length; i++) {
+            result[i] = makerEscrows[_maker][orderIds[i]];
+        }
+        
+        return result;
     }
 
-    // 获取用户作为taker的所有托管订单ID
+    // 获取用户作为taker的所有托管订单
     function getTakerEscrows(address _taker) external view returns (Escrow[] memory) {
-        return takerEscrows[_taker];
+        uint256[] memory orderIds = takerOrderIds[_taker];
+        Escrow[] memory result = new Escrow[](orderIds.length);
+        
+        for (uint i = 0; i < orderIds.length; i++) {
+            result[i] = takerEscrows[_taker][orderIds[i]];
+        }
+        
+        return result;
+    }
+    
+    // 获取所有托管订单（管理员专用）
+    function getAllEscrows() external view onlyOwner returns (Escrow[] memory) {
+        Escrow[] memory result = new Escrow[](allEscrowOrderIds.length);
+        
+        for (uint i = 0; i < allEscrowOrderIds.length; i++) {
+            result[i] = escrows[allEscrowOrderIds[i]];
+        }
+        
+        return result;
     }
 }

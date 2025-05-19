@@ -9,7 +9,7 @@ import { MARKET_CONTRACT_ADDRESS_LOCAL, ESCROW_CONTRACT_ADDRESS_LOCAL } from '@/
 import { marketAbi } from '@/contractAbis/marketAbi';
 import { escrowAbi } from '@/contractAbis/escrowAbi';
 import { token as tokenList } from '@/config/tokenList';
-import { useReadContract, useWriteContract } from 'wagmi';
+import { useReadContract, useWriteContract, useAccount, useBalance } from 'wagmi';
 import { formatUnits } from 'ethers';
 
 const { Title } = Typography;
@@ -29,6 +29,7 @@ export default function OrderHall() {
   const router = useRouter();
   const { t } = useTranslation();
   const { address } = useWeb3Store();
+  const account = useAccount();
   const [orders, setOrders] = useState<Order[]>([]);
 
   const { data: ordersData, refetch: refetchAllOrders, error: allOrdersFetchError } = useReadContract({
@@ -37,9 +38,26 @@ export default function OrderHall() {
     functionName: 'getAllOrders',
   });
 
+  // 获取ETH余额
+  const { data: ethBalanceData } = useBalance({
+    address: address as `0x${string}`,
+    token: undefined
+  });
+
+  // 获取所有token余额
+  const tokenBalances: Record<string, bigint> = {};
+  tokenList.forEach(token => {
+    const { data } = useBalance({
+      address: address as `0x${string}`,
+      token: token.address as `0x${string}`
+    });
+    tokenBalances[token.address] = data?.value || BigInt(0);
+  });
+
   useEffect(() => {
     if (ordersData) {
       // 显示所有订单，不进行过滤
+      console.log("ordersData", ordersData)
       setOrders(ordersData as Order[]);
     }
   }, [ordersData]);
@@ -48,6 +66,23 @@ export default function OrderHall() {
 
   const handleRespond = async (orderId: bigint) => {
     try {
+      const order = orders.find(o => o.orderId === orderId);
+      if (!order) return;
+      // 判断余额
+      if (order.tokenToBuy === '0x0000000000000000000000000000000000000000') {
+        // ETH
+        if (!ethBalanceData || ethBalanceData.value < order.amountToBuy) {
+          message.error('Insufficient balance, please top up');
+          return;
+        }
+      } else {
+        // ERC20
+        const balance = tokenBalances[order.tokenToBuy] || BigInt(0);
+        if (balance < order.amountToBuy) {
+          message.error('Insufficient balance, please top up');
+          return;
+        }
+      }
       writeEscrowContract({
         address: ESCROW_CONTRACT_ADDRESS_LOCAL,
         abi: escrowAbi,
@@ -55,7 +90,7 @@ export default function OrderHall() {
         args: [orderId],
       });
     } catch (error) {
-      console.error('响应订单失败:', error);
+      console.error('Failed to respond to order:', error);
     }
   };
 

@@ -76,6 +76,14 @@ export default function AdminDashboard() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+       {/* 快捷操作按钮 */}
+       <Space className="mb-6" size="middle">
+        <Button type="primary" onClick={() => router.push('/admin/kyc')}>{t('dashboard.kycDetails')}</Button>
+        <Button type="primary" onClick={() => router.push('/admin/escrow-dispute')} style={{ backgroundColor: '#722ed1' }}>
+          Escrow Dispute Management
+        </Button>
+      </Space>
+
       {/* KYC申请列表 */}
       <Card className="mb-6">
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -95,20 +103,11 @@ export default function AdminDashboard() {
                 key={item.id}
                 actions={item.status === 'pending' ? [
                   <Button
-                    key="approve"
+                    key="review"
                     type="primary"
-                    onClick={() => handleKYCReview(item.id, 'approved')}
-                    style={{ backgroundColor: '#52c41a' }}
+                    onClick={() => router.push('/admin/kyc')}
                   >
-                    {t('dashboard.approve')}
-                  </Button>,
-                  <Button
-                    key="reject"
-                    type="primary"
-                    danger
-                    onClick={() => handleKYCReview(item.id, 'rejected')}
-                  >
-                    {t('dashboard.reject')}
+                    Review
                   </Button>
                 ] : []}
               >
@@ -144,47 +143,8 @@ export default function AdminDashboard() {
         </Space>
       </Card>
 
-      {/* 快捷操作按钮 */}
-      <Space className="mb-6" size="middle">
-        <Button type="primary" onClick={() => router.push('/admin/kyc')}>{t('dashboard.kycDetails')}</Button>
-        <Button type="primary" onClick={handleDepositReview}>{t('dashboard.depositReview')}</Button>
-        <Button type="primary" onClick={handleWithdrawReview} style={{ backgroundColor: '#722ed1' }}>{t('dashboard.withdrawReview')}</Button>
-      </Space>
-
-      {/* 所有用户交易记录 */}
-      <Card>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Title level={4}>{t('dashboard.transactionRecords')}</Title>
-          <List
-            dataSource={transactions}
-            renderItem={(item) => (
-              <List.Item key={item.id}>
-                <List.Item.Meta
-                  title={<Space>
-                    <span>{t('dashboard.transactionId')}: {item.id}</span>
-                    <Tag color={item.type === 'buy' ? 'blue' : 'orange'}>
-                      {item.type === 'buy' ? t('dashboard.buy') : t('dashboard.sell')}
-                    </Tag>
-                  </Space>}
-                  description={
-                    <Space direction="vertical">
-                      <span>{t('dashboard.userId')}: {item.userId}</span>
-                      <span>{t('dashboard.amount')}: {item.amount}</span>
-                      <span>{t('dashboard.status')}: {item.status}</span>
-                      <span>{t('dashboard.time')}: {new Date(item.createdAt).toLocaleString()}</span>
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
-            pagination={{
-              pageSize: 10,
-              showTotal: (total) => t('dashboard.totalRecords', { total })
-            }}
-            locale={{ emptyText: t('dashboard.noTransactions') }}
-          />
-        </Space>
-      </Card>
+     
+     
     </div>
   );
 }
