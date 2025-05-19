@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自定义样式 */
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Ant Design 样式覆盖 */
+.ant-layout {
+  min-height: 100vh;
+}
+
+.ant-layout-header {
+  background: white !important;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 解决布局偏移问题 */
+.ant-layout-content {
+  min-height: calc(100vh - 64px);
+  position: relative;
+}
+
+/* 设置图片和卡片的固定尺寸，避免加载时布局偏移 */
+img, .ant-image {
+  height: auto;
+  object-fit: contain;
+}
+
+.ant-card, .ant-statistic, .ant-typography {
+  height: auto;
+  min-height: 1.5rem;
+}
+
+/* 骨架屏相关样式 */
+.fixed-height-container {
+  min-height: 200px;
+  position: relative;
+}
+
+/* 预设布局容器大小 */
+.content-container {
+  display: block;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* 减少布局偏移的通用类 */
+.placeholder {
+  min-height: 1.5em;
+  min-width: 5em;
+}
+
+.img-placeholder {
+  aspect-ratio: 16/9;
+  background-color: #f0f0f0;
+}
+
+/* 确保LCP元素快速渲染 */
+h1.ant-typography {
+  content-visibility: auto;
+  will-change: auto;
+}
+
+/* 提高页面渲染性能 */
+.high-priority {
+  content-visibility: auto;
+}
