@@ -134,8 +134,9 @@ const EscrowOrderList = () => {
           taker: escrow.taker,
           tokenToSell: escrow.tokenToSell,
           tokenToBuy: escrow.tokenToBuy,
-          amountToSell: formatUnits(escrow.amountToSell, 18),
-          amountToBuy: formatUnits(escrow.amountToBuy, 18),
+          amountToSell: escrow.amountToSell ? formatUnits(escrow.amountToSell, tokenList.find(t => t.address === escrow.tokenToSell)?.decimals || 18) : '0',
+          amountToBuy: escrow.amountToBuy ? formatUnits(escrow.amountToBuy, tokenList.find(t => t.address === escrow.tokenToBuy)?.decimals || 18) : '0',
+         
           status: ['Created', 'Locked', 'Completed', 'Refunded', 'Disputed'][escrow.status],
           createdAt: new Date(Number(escrow.createdAt) * 1000).toLocaleString(),
           completedAt: Number(escrow.completedAt) > 0
@@ -260,13 +261,16 @@ const EscrowOrderList = () => {
           return;
         }
 
-        const amountInWei = parseEther(escrow.amountToSell);
-        
+        const amountInWei = parseUnits(escrow.amountToSell, tokenList.find(t => t.address === escrow.tokenToSell)?.decimals || 18);
+        console.log("amountInWei", amountInWei)
+        console.log("allowanceMap[escrow.tokenToSell]", allowanceMap[escrow.tokenToSell])
         // 检查授权额度
-        if (allowanceMap[escrow.tokenToSell] && BigInt(allowanceMap[escrow.tokenToSell]) >= amountInWei) {
+        if (allowanceMap[escrow.tokenToSell] && allowanceMap[escrow.tokenToSell] >= amountInWei) {
+          
           // 已有足够授权，直接锁定
           handleLockEscrowDirect(orderId);
         } else {
+        
           // 需要授权
           handleApprove(escrow.tokenToSell, escrow.amountToSell, orderId);
         }
@@ -380,9 +384,20 @@ const EscrowOrderList = () => {
         let enoughAllowance = true;
         if (isERC20 && address) {
           const token = tokenList.find(t => t.address === record.tokenToSell);
-          const amountInWei = parseUnits(record.amountToSell, token?.decimals || 18);
-          const allowance = allowanceMap[record.tokenToSell] || BigInt(0);
-          enoughAllowance = allowance >= amountInWei;
+          try {
+            // 使用try-catch包裹，防止精度异常导致程序崩溃
+            const decimals = token?.decimals || 18;
+            // 对极小的数值进行特殊处理，使用最小的有效值代替
+            const safeAmount = record.amountToSell === '0' ? '0' : 
+              (Number(record.amountToSell) < 1e-15 ? '0.000000000000001' : record.amountToSell);
+            const amountInWei = parseUnits(safeAmount, decimals);
+            const allowance = allowanceMap[record.tokenToSell] || BigInt(0);
+            enoughAllowance = allowance >= amountInWei;
+          } catch (error) {
+            console.error('Error parsing amount:', error);
+            // 出错时保守处理，认为授权不足
+            enoughAllowance = false;
+          }
         }
         return (
           <Space size="middle">

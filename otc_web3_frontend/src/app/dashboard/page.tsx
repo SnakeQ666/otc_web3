@@ -4,9 +4,10 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '@/utils/axios';
-import { Card, Table, Button, Tag, Space, Typography, Divider, Spin } from 'antd';
+import { Card, Table, Button, Tag, Space, Typography, Divider, Spin, Row, Col } from 'antd';
 import dynamic from 'next/dynamic';
 import Web3ErrorBoundary from '../components/Web3ErrorBoundary';
+import { SwapOutlined, BankOutlined, HistoryOutlined, UnorderedListOutlined, PlusCircleOutlined, GiftOutlined } from "@ant-design/icons";
 
 const { Title } = Typography;
 
@@ -38,51 +39,77 @@ export default function Dashboard() {
   const router = useRouter();
   const { t } = useTranslation();
   const [kycStatus, setKycStatus] = useState<KYCStatus | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Optimize loading order: load basic info first, delay loading Web3 related content
-    setLoading(true);
     
     // Get KYC status
-    const fetchKYCStatus = async () => {
-      try {
-        const response = await axiosInstance.get('/kyc/status');
-        setKycStatus(response?.data?.data);
-      } catch (error) {
-        console.error('Failed to get KYC status:', error);
-      }
-    };
-
-    // Get transaction records
-    const fetchTransactions = async () => {
-      try {
-        const response = await axiosInstance.get('/transactions');
-        setTransactions(response.data);
-      } catch (error) {
-        console.error('Failed to get transaction records:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Parallel requests to speed up loading
-    Promise.all([fetchKYCStatus(), fetchTransactions()]).catch(() => {
-      setLoading(false);
-    });
+  
   }, []);
 
-  const handleCreateOrder = () => {
-    router.push('/orders');
-  };
 
-  const handleOrderHall = () => {
-    router.push('/orderhall');
-  };
+  const menuItems = [
+    {
+      title: "OTC Trading",
+      description: "Trade tokens directly with other users",
+      icon: <SwapOutlined style={{ fontSize: "24px" }} />,
+      path: "/orders",
+    },
+    {
+      title: "Lending Market",
+      description: "Borrow and lend tokens with collateral",
+      icon: <BankOutlined style={{ fontSize: "24px" }} />,
+      path: "/lending",
+    },
+    {
+      title: "My Loans",
+      description: "View and manage your loans",
+      icon: <HistoryOutlined style={{ fontSize: "24px" }} />,
+      path: "/lending/my-loans",
+    },
+    {
+      title: "Order Hall",
+      description: "View all available orders",
+      icon: <UnorderedListOutlined style={{ fontSize: "24px" }} />,
+      path: "/orderhall",
+    },
+    {
+      title: "Create Order",
+      description: "Create a new OTC order",
+      icon: <PlusCircleOutlined style={{ fontSize: "24px" }} />,
+      path: "/orders",
+    },
+    {
+      title: "Claim",
+      description: "Claim test tokens",
+      icon: <GiftOutlined style={{ fontSize: "24px" }} />,
+      path: "/tokens",
+    },
+  ];
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <h1 className="text-2xl font-bold mb-8">Dashboard</h1>
+      <Row gutter={[24, 24]}>
+        {menuItems.map((item, idx) => (
+          <Col xs={24} sm={12} md={8} key={item.path}>
+            <Card
+              hoverable
+              className="h-full transition-transform duration-200 hover:scale-105 shadow-md"
+              onClick={() => router.push(item.path)}
+              style={{ minHeight: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-4 text-blue-500">{item.icon}</div>
+                <h2 className="text-lg font-semibold mb-2">{item.title}</h2>
+                <p className="text-gray-600">{item.description}</p>
+              </div>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+
       {/* KYC Status Card */}
       <Card className="mb-6">
         <Title level={4} className="high-priority">{t('dashboard.kycStatus')}</Title>
@@ -112,18 +139,6 @@ export default function Dashboard() {
         )}
       </Card>
 
-      {/* Quick Action Buttons */}
-      <Space className="mb-6" size="middle">
-        <Button type="primary" onClick={handleOrderHall} style={{ backgroundColor: '#1890ff' }}>
-          {t('dashboard.orderHall')}
-        </Button>
-        <Button type="primary" onClick={handleCreateOrder}>
-          {t('dashboard.createOrder')}
-        </Button>
-        <Button type="primary" onClick={() => router.push('/tokens')} style={{ backgroundColor: '#52c41a' }}>
-          Claim
-        </Button>
-      </Space>
 
       {/* Seller Escrow Order List - Wrapped in Web3ErrorBoundary */}
       <Card className="mb-6">
@@ -149,53 +164,7 @@ export default function Dashboard() {
         </Web3ErrorBoundary>
       </Card>
 
-      {/* Transaction Records List */}
-      <Card>
-        <Title level={4}>{t('dashboard.transactionRecords')}</Title>
-        {loading ? (
-          <div className="p-6 text-center"><Spin /></div>
-        ) : (
-          <Table
-            dataSource={transactions}
-            rowKey="id"
-            pagination={false}
-            locale={{ emptyText: t('dashboard.noTransactions') }}
-            columns={[
-              {
-                title: t('dashboard.transactionId'),
-                dataIndex: 'id',
-                key: 'id'
-              },
-              {
-                title: t('dashboard.type'),
-                dataIndex: 'type',
-                key: 'type',
-                render: (type) => (
-                  <Tag color={type === 'buy' ? 'blue' : 'orange'}>
-                    {type === 'buy' ? t('dashboard.buy') : t('dashboard.sell')}
-                  </Tag>
-                )
-              },
-              {
-                title: t('dashboard.amount'),
-                dataIndex: 'amount',
-                key: 'amount'
-              },
-              {
-                title: t('dashboard.status'),
-                dataIndex: 'status',
-                key: 'status'
-              },
-              {
-                title: t('dashboard.time'),
-                dataIndex: 'createdAt',
-                key: 'createdAt',
-                render: (createdAt) => new Date(createdAt).toLocaleString()
-              }
-            ]}
-          />
-        )}
-      </Card>
+    
     </div>
   );
 }

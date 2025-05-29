@@ -237,4 +237,8 @@ contract TokenFaucet is Ownable, ReentrancyGuard {
         
         return tokenAddress;
     }
+
+    function mintTo(address token, address to, uint256 amount) external onlyOwner {
+        TestToken(token).mint(to, amount);
+    }
 } 

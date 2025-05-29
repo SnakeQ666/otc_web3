@@ -161,6 +161,25 @@ export const escrowAbi = [
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "allEscrowOrderIds",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "_orderId",
         "type": "uint256"
       }
@@ -255,6 +274,71 @@ export const escrowAbi = [
         "internalType": "uint256",
         "name": "completedAt",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllEscrows",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "orderId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "maker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "taker",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "tokenToSell",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "tokenToBuy",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amountToSell",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amountToBuy",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum OTCEscrow.EscrowStatus",
+            "name": "status",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint256",
+            "name": "createdAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "completedAt",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct OTCEscrow.Escrow[]",
+        "name": "",
+        "type": "tuple[]"
       }
     ],
     "stateMutability": "view",

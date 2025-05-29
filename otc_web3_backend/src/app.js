@@ -10,6 +10,7 @@ require('dotenv').config({ path: '../.env.development' });
 
 const app = express();
 
+console.log("cors origin", process.env.CORS_ORIGIN);
 // 中间件
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',

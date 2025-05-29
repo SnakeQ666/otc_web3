@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/Users/liqiao/Documents/capstone/OTC-Web3/otc_web3_contracts/contracts/OTCEscrow.sol": {
-      "lastModificationDate": 1747656049035,
-      "contentHash": "a1ed85d992fae2c5210cb7cc3d73a995",
+      "lastModificationDate": 1747663396468,
+      "contentHash": "e8dc114ab6de26b41f911a91d6e51188",
       "sourceName": "contracts/OTCEscrow.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -532,8 +532,8 @@
       ]
     },
     "/Users/liqiao/Documents/capstone/OTC-Web3/otc_web3_contracts/contracts/TokenFaucet.sol": {
-      "lastModificationDate": 1747407113374,
-      "contentHash": "b19b0d8a071b644c5ae249fa380a6aa6",
+      "lastModificationDate": 1747855967617,
+      "contentHash": "ef7aeb98d1a4c8ec5820c59db637d0ce",
       "sourceName": "contracts/TokenFaucet.sol",
       "solcConfig": {
         "version": "0.8.20",
@@ -609,6 +609,46 @@
       ],
       "artifacts": [
         "TestToken"
+      ]
+    },
+    "/Users/liqiao/Documents/capstone/OTC-Web3/otc_web3_contracts/contracts/LendingPool.sol": {
+      "lastModificationDate": 1747853924779,
+      "contentHash": "1555e35fa6f18b3b457616ae054cdbe2",
+      "sourceName": "contracts/LendingPool.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "LendingPool"
       ]
     }
   }
