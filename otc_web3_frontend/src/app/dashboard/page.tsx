@@ -42,10 +42,25 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Optimize loading order: load basic info first, delay loading Web3 related content
-    
-    // Get KYC status
-  
+    const fetchKYCStatus = async () => {
+      try {
+        setLoading(true); // Explicitly set loading to true at the beginning
+        const response = await axiosInstance.get('/kyc/status');
+        if (response.data && response.data.success) {
+          setKycStatus(response.data.data);
+        } else {
+          // Handle cases where response.data.success is false or data is not as expected
+          setKycStatus(null); 
+        }
+      } catch (error) {
+        console.error('Failed to fetch KYC status:', error);
+        setKycStatus(null); // Set to null or an error state
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchKYCStatus();
   }, []);
 
 

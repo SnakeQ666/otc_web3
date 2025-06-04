@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, Table, Button, Tag, message, Spin } from "antd";
-import { useReadContract, useWriteContract, useContractReads } from "wagmi";
+import { useReadContract, useWriteContract, useReadContracts } from "wagmi";
 import { LENDING_POOL_ABI } from "@/contractAbis/lendingPollAbi";
 import { LENDING_POOL_ADDRESS_LOCAL } from "@/config/contracts";
 import { token as tokenList } from '@/config/tokenList';
@@ -39,7 +39,7 @@ interface LoanData {
 export default function MyLoansPage() {
   const { address } = useAccount();
   const [loans, setLoans] = useState<Loan[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Get user loans
   const { data: userLoans } = useReadContract({
@@ -49,14 +49,18 @@ export default function MyLoansPage() {
     args: [address],
   }) as { data: bigint[] | undefined };
 
-  const { data: loanDetails, isLoading: isLoadingLoanDetails ,refetch: refetchLoanDetails} = useContractReads({
+  const { data: loanDetails, isLoading: isLoadingLoanDetails ,refetch: refetchLoanDetails} = useReadContracts({
     contracts: (userLoans as bigint[] ?? []).map((loanId: bigint) => ({
       address: LENDING_POOL_ADDRESS_LOCAL,
       abi: LENDING_POOL_ABI,
       functionName: 'loans',
       args: [loanId],
+      
     })),
   });
+  useEffect(() => {
+    console.log("userLoans",userLoans);
+  }, [userLoans]);
 
   // Repay loan
   const { writeContract: repayLoan, isPending: isRepaying,isSuccess: isRepaySuccess } = useWriteContract();
@@ -84,6 +88,8 @@ export default function MyLoansPage() {
   // Get loan details
   useEffect(() => {
     if (loanDetails && userLoans && Array.isArray(loanDetails) && Array.isArray(userLoans)) {
+      console.log(loanDetails);
+      console.log(userLoans);
       setLoans(
         loanDetails
           .map((loan: any, idx: number) => {

@@ -1,43 +1,43 @@
 const hre = require("hardhat");
 
 async function main() {
-  console.log("开始部署合约...");
+  console.log("Starting contract deployment...");
 
-  // 部署市场合约
+  // Deploy market contract
   const OTCMarket = await hre.ethers.getContractFactory("OTCMarket");
   const market = await OTCMarket.deploy();
   await market.waitForDeployment();
   const marketAddress = await market.getAddress();
-  console.log(`市场合约已部署到: ${marketAddress}`);
+  console.log(`Market contract deployed to: ${marketAddress}`);
 
-  // 部署托管合约
+  // Deploy escrow contract
   const OTCEscrow = await hre.ethers.getContractFactory("OTCEscrow");
   const escrow = await OTCEscrow.deploy(marketAddress);
   await escrow.waitForDeployment();
   const escrowAddress = await escrow.getAddress();
-  console.log(`托管合约已部署到: ${escrowAddress}`);
-  console.log("托管合约已与市场合约关联");
+  console.log(`Escrow contract deployed to: ${escrowAddress}`);
+  console.log("Escrow contract associated with market contract");
 
-  console.log("等待区块确认...");
-  // 等待几个区块确认
+  console.log("Waiting for block confirmations...");
+  // Wait for a few block confirmations
   await market.deploymentTransaction().wait(5);
   await escrow.deploymentTransaction().wait(5);
 
-  // 验证市场合约
-  console.log("开始验证市场合约...");
+  // Verify market contract
+  console.log("Starting market contract verification...");
   await hre.run("verify:verify", {
     address: marketAddress,
     constructorArguments: []
   });
 
-  // 验证托管合约
-  console.log("开始验证托管合约...");
+  // Verify escrow contract
+  console.log("Starting escrow contract verification...");
   await hre.run("verify:verify", {
     address: escrowAddress,
     constructorArguments: [marketAddress]
   });
 
-  console.log("合约部署和验证完成！");
+  console.log("Contract deployment and verification complete!");
 }
 
 main().catch((error) => {

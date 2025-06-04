@@ -1,4 +1,4 @@
-// 部署TokenFaucet合约并添加初始代币
+// Deploy TokenFaucet contract and add initial tokens
 const hre = require("hardhat");
 const fs = require('fs');
 const path = require('path');
@@ -7,7 +7,7 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with the account:", deployer.address);
 
-  // 部署TokenFaucet合约
+  // Deploy TokenFaucet contract
   const TokenFaucet = await hre.ethers.getContractFactory("TokenFaucet");
   const tokenFaucet = await TokenFaucet.deploy();
   await tokenFaucet.waitForDeployment();
@@ -15,77 +15,77 @@ async function main() {
   const tokenFaucetAddress = await tokenFaucet.getAddress();
   console.log("TokenFaucet deployed to:", tokenFaucetAddress);
 
-  // === 自动写入前端 contracts.ts ===
+  // === Automatically write to frontend contracts.ts ===
   const contractsPath = path.resolve(__dirname, '../../otc_web3_frontend/src/config/contracts.ts');
   let contractsContent = '';
   if (fs.existsSync(contractsPath)) {
-    // 读取原有内容，保留 MARKET_CONTRACT_ADDRESS_LOCAL 和 ESCROW_CONTRACT_ADDRESS_LOCAL
+    // Read existing content, retain MARKET_CONTRACT_ADDRESS_LOCAL and ESCROW_CONTRACT_ADDRESS_LOCAL
     const raw = fs.readFileSync(contractsPath, 'utf-8');
-    const marketMatch = raw.match(/export const MARKET_CONTRACT_ADDRESS_LOCAL = '([^']+)'/);
-    const escrowMatch = raw.match(/export const ESCROW_CONTRACT_ADDRESS_LOCAL = '([^']+)'/);
+    const marketMatch = raw.match(/export const MARKET_CONTRACT_ADDRESS_LOCAL = '([^']*)'/);
+    const escrowMatch = raw.match(/export const ESCROW_CONTRACT_ADDRESS_LOCAL = '([^']*)'/);
     const market = marketMatch ? marketMatch[1] : '';
     const escrow = escrowMatch ? escrowMatch[1] : '';
-    contractsContent = `// 合约地址配置\nexport const MARKET_CONTRACT_ADDRESS_LOCAL = '${market}';\nexport const ESCROW_CONTRACT_ADDRESS_LOCAL = '${escrow}';\nexport const TOKEN_FAUCET_ADDRESS_LOCAL = '${tokenFaucetAddress}';\n`;
+    contractsContent = `// Contract address configuration\nexport const MARKET_CONTRACT_ADDRESS_LOCAL = '${market}';\nexport const ESCROW_CONTRACT_ADDRESS_LOCAL = '${escrow}';\nexport const TOKEN_FAUCET_ADDRESS_LOCAL = '${tokenFaucetAddress}';\n`;
   } else {
-    contractsContent = `// 合约地址配置\nexport const MARKET_CONTRACT_ADDRESS_LOCAL = '';\nexport const ESCROW_CONTRACT_ADDRESS_LOCAL = '';\nexport const TOKEN_FAUCET_ADDRESS_LOCAL = '${tokenFaucetAddress}';\n`;
+    contractsContent = `// Contract address configuration\nexport const MARKET_CONTRACT_ADDRESS_LOCAL = '';\nexport const ESCROW_CONTRACT_ADDRESS_LOCAL = '';\nexport const TOKEN_FAUCET_ADDRESS_LOCAL = '${tokenFaucetAddress}';\n`;
   }
   fs.writeFileSync(contractsPath, contractsContent, 'utf-8');
-  console.log(`已自动写入TokenFaucet地址到: ${contractsPath}`);
+  console.log(`TokenFaucet address automatically written to: ${contractsPath}`); // 已自动写入TokenFaucet地址到:
 
-  // 创建与前端tokenList.ts匹配的代币
+  // Create tokens matching frontend tokenList.ts
   const initialTokens = [
     {
       name: "Test Tether USD",
       symbol: "TUSDT",
       decimals: 6,
-      initialSupply: 10000000, // 1000万
-      faucetAmount: 1000,      // 每次领取1000 TUSDT
-      cooldown: 3600,          // 1小时冷却时间
+      initialSupply: 10000000, // 10 million
+      faucetAmount: 1000,      // Claim 1000 TUSDT each time
+      cooldown: 3600,          // 1 hour cooldown
       icon: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png"
     },
     {
       name: "Test Chainlink Token",
       symbol: "TLINK",
       decimals: 18,
-      initialSupply: 1000000,  // 100万
-      faucetAmount: 100,        // 每次领取10 TLINK
-      cooldown: 3600,          // 1小时冷却时间
+      initialSupply: 1000000,  // 1 million
+      faucetAmount: 100,        // Claim 100 TLINK each time
+      cooldown: 3600,          // 1 hour cooldown
       icon: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x514910771AF9Ca656af840dff83E8264EcF986CA/logo.png"
     },
     {
       name: "Test Uniswap",
       symbol: "TUNI",
       decimals: 18,
-      initialSupply: 1000000,  // 100万
-      faucetAmount: 1000,       // 每次领取100 TUNI
-      cooldown: 3600,          // 1小时冷却时间
+      initialSupply: 1000000,  // 1 million
+      faucetAmount: 1000,       // Claim 1000 TUNI each time
+      cooldown: 3600,          // 1 hour cooldown
       icon: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png"
     },
     {
       name: "Test Wrapped Ether",
       symbol: "TWETH",
       decimals: 18,
-      initialSupply: 10000,    // 1万
-      faucetAmount: 10,         // 每次领取1 TWETH
-      cooldown: 3600,          // 1小时冷却时间
+      initialSupply: 10000,    // 10 thousand
+      faucetAmount: 10,         // Claim 10 TWETH each time
+      cooldown: 3600,          // 1 hour cooldown
       icon: "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png"
     }
   ];
 
-  // 创建一个用于记录部署的代币的对象
+  // Create an object to record deployed tokens
   const deployedTokens = [];
 
-  // 部署初始代币并添加到TokenFaucet
+  // Deploy initial tokens and add to TokenFaucet
   for (const tokenConfig of initialTokens) {
     console.log(`Deploying ${tokenConfig.name} (${tokenConfig.symbol})...`);
     
-    // 计算带精度的金额
+    // Calculate amount with decimals
     const faucetAmount = ethers.parseUnits(
       tokenConfig.faucetAmount.toString(), 
       tokenConfig.decimals
     );
     
-    // 部署并添加代币
+    // Deploy and add token
     const tx = await tokenFaucet.deployAndAddToken(
       tokenConfig.name,
       tokenConfig.symbol,
@@ -97,7 +97,7 @@ async function main() {
     
     const receipt = await tx.wait();
     
-    // 从事件中获取代币地址
+    // Get token address from event
     const tokenAddedEvent = receipt.logs
       .filter(log => log.fragment && log.fragment.name === 'TokenAdded')
       .map(log => log.args)[0];
@@ -118,7 +118,7 @@ async function main() {
   console.log("All tokens deployed and added to TokenFaucet");
   console.log("TokenFaucet address:", tokenFaucetAddress);
   
-  // 输出代币列表，可以用于更新前端配置
+  // Output token list, can be used to update frontend configuration
   console.log("\nToken List for Frontend (tokenList.ts):");
   console.log("export const token = [");
   console.log("  {");
@@ -141,7 +141,7 @@ async function main() {
   
   console.log("];");
 
-  // 输出代币列表，可以用于更新前端配置
+  // Output token list, can be used to update frontend configuration
   const frontendTokenList = [
     {
       name: "Ethereum",
@@ -153,17 +153,17 @@ async function main() {
     ...deployedTokens
   ];
 
-  const tokenListContent = `export const token = ${JSON.stringify(frontendTokenList, null, 2)}\n`;
+  const tokenListContent = `export const token = ${JSON.stringify(frontendTokenList, null, 2)};\n`; // Added semicolon
 
   const frontendTokenListPath = path.resolve(__dirname, '../../otc_web3_frontend/src/config/tokenList.ts');
   fs.writeFileSync(frontendTokenListPath, tokenListContent, 'utf-8');
-  console.log(`\n已自动写入最新tokenList到: ${frontendTokenListPath}`);
+  console.log(`\nLatest tokenList automatically written to: ${frontendTokenListPath}`); // 已自动写入最新tokenList到:
 
-  // ====== 新增：直接调用getAllTokens并打印结果 ======
+  // ====== ADDED: Directly call getAllTokens and print result ======
   const TokenFaucetABI = TokenFaucet.interface.fragments;
   const tokenFaucetInstance = await hre.ethers.getContractAt("TokenFaucet", tokenFaucetAddress);
   const allTokens = await tokenFaucetInstance.getAllTokens();
-  console.log("\n直接调用getAllTokens()返回:");
+  console.log("\nDirect call to getAllTokens() returns:"); // 直接调用getAllTokens()返回:
   console.dir(allTokens, { depth: null });
 }
 

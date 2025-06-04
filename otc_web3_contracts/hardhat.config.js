@@ -1,5 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
+require("hardhat-gas-reporter");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -29,5 +30,13 @@ module.exports = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY
+  },
+  gasReporter: {
+    enabled: (process.env.REPORT_GAS !== 'false'),
+    currency: 'USD',
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY || null,
+    outputFile: 'gas-report.txt',
+    noColors: true,
+    token: 'ETH',
   }
 };

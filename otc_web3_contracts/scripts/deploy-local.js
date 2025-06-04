@@ -3,88 +3,88 @@ const fs = require("fs");
 const path = require("path");
 
 async function main() {
-  console.log("开始部署合约...");
+  console.log("Starting contract deployment...");
 
-  // 部署市场合约
+  // Deploy market contract
   const OTCMarket = await hre.ethers.getContractFactory("OTCMarket");
   const market = await OTCMarket.deploy();
   await market.waitForDeployment();
   const marketAddress = await market.getAddress();
-  console.log(`市场合约已部署到: ${marketAddress}`);
+  console.log(`Market contract deployed to: ${marketAddress}`);
 
-  // 部署托管合约
+  // Deploy escrow contract
   const OTCEscrow = await hre.ethers.getContractFactory("OTCEscrow");
   const escrow = await OTCEscrow.deploy(marketAddress);
   await escrow.waitForDeployment();
   const escrowAddress = await escrow.getAddress();
-  console.log(`托管合约已部署到: ${escrowAddress}`);
-  console.log("托管合约已与市场合约关联");
+  console.log(`Escrow contract deployed to: ${escrowAddress}`);
+  console.log("Escrow contract associated with market contract");
 
-  // 设置事件监听器
+  // Set up event listeners
   market.on("OrderCreated", (orderId, maker, tokenToSell, tokenToBuy, amountToSell, amountToBuy, event) => {
-    console.log(`\n新订单创建事件：`);
-    console.log(`- 订单ID: ${orderId}`);
-    console.log(`- 创建者: ${maker}`);
-    console.log(`- 出售代币: ${tokenToSell}`);
-    console.log(`- 购买代币: ${tokenToBuy}`);
-    console.log(`- 出售数量: ${amountToSell}`);
-    console.log(`- 购买数量: ${amountToBuy}`);
+    console.log(`\nNew Order Created Event:`);
+    console.log(`- Order ID: ${orderId}`);
+    console.log(`- Creator: ${maker}`);
+    console.log(`- Token to Sell: ${tokenToSell}`);
+    console.log(`- Token to Buy: ${tokenToBuy}`);
+    console.log(`- Amount to Sell: ${amountToSell}`);
+    console.log(`- Amount to Buy: ${amountToBuy}`);
   });
 
   market.on("OrderCompleted", (orderId, event) => {
-    console.log(`\n订单完成事件：`);
-    console.log(`- 订单ID: ${orderId}`);
+    console.log(`\nOrder Completed Event:`);
+    console.log(`- Order ID: ${orderId}`);
   });
 
   market.on("OrderCancelled", (orderId, event) => {
-    console.log(`\n订单取消事件：`);
-    console.log(`- 订单ID: ${orderId}`);
+    console.log(`\nOrder Cancelled Event:`);
+    console.log(`- Order ID: ${orderId}`);
   });
 
   escrow.on("EscrowCreated", (orderId, maker, taker, event) => {
-    console.log(`\n托管创建事件：`);
-    console.log(`- 订单ID: ${orderId}`);
-    console.log(`- 创建者: ${maker}`);
-    console.log(`- 接单者: ${taker}`);
+    console.log(`\nEscrow Created Event:`);
+    console.log(`- Order ID: ${orderId}`);
+    console.log(`- Creator: ${maker}`);
+    console.log(`- Taker: ${taker}`);
   });
 
   escrow.on("EscrowLocked", (orderId, event) => {
-    console.log(`\n托管锁定事件：`);
-    console.log(`- 订单ID: ${orderId}`);
+    console.log(`\nEscrow Locked Event:`);
+    console.log(`- Order ID: ${orderId}`);
   });
 
   escrow.on("EscrowCompleted", (orderId, event) => {
-    console.log(`\n托管完成事件：`);
-    console.log(`- 订单ID: ${orderId}`);
+    console.log(`\nEscrow Completed Event:`);
+    console.log(`- Order ID: ${orderId}`);
   });
 
   escrow.on("EscrowRefunded", (orderId, event) => {
-    console.log(`\n托管退款事件：`);
-    console.log(`- 订单ID: ${orderId}`);
+    console.log(`\nEscrow Refunded Event:`);
+    console.log(`- Order ID: ${orderId}`);
   });
 
   escrow.on("EscrowDisputed", (orderId, event) => {
-    console.log(`\n托管争议事件：`);
-    console.log(`- 订单ID: ${orderId}`);
+    console.log(`\nEscrow Disputed Event:`);
+    console.log(`- Order ID: ${orderId}`);
   });
 
-//   // 保存合约地址到文件
+//   // Save contract addresses to file
 //   const addresses = {
 //     market: marketAddress,
 //     escrow: escrowAddress
 //   };
 
-  // 自动写入前端合约地址配置
+  // Automatically write frontend contract address configuration
   const frontendContractsPath = path.resolve(__dirname, '../../otc_web3_frontend/src/config/contracts.ts');
-  const contractsContent = `// 合约地址配置
+  const contractsContent = `// Contract address configuration
 export const MARKET_CONTRACT_ADDRESS_LOCAL = '${marketAddress}';
 export const ESCROW_CONTRACT_ADDRESS_LOCAL = '${escrowAddress}';
 `;
 
   fs.writeFileSync(frontendContractsPath, contractsContent, 'utf-8');
-  console.log(`\n已自动写入最新合约地址到: ${frontendContractsPath}`);
+  console.log(`\nLatest contract addresses automatically written to: ${frontendContractsPath}`);
 
-  console.log("\n合约部署完成！监听事件中...");
+  console.log("\nContract deployment complete! Listening for events...");
 }
 
 main().catch((error) => {
